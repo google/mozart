@@ -42,7 +42,12 @@ project, enabled billing and that you have Admin access to the project via
 
 For instructions on how to create a Google Cloud project and enable billing
 please refer to
-[Google Cloud Plaftorm documentation](https://cloud.google.com/resource-manager/docs/creating-managing-projects).
+[Google Cloud Platform documentation](https://cloud.google.com/resource-manager/docs/creating-managing-projects).
+
+You must also enable certain Google Cloud Platform APIs to be able to use Mozart. In order to enable all of them
+in a single step, click on [enable APIs](https://console.cloud.google.com/flows/enableapi?apiid=composer.googleapis.com,dataproc.googleapis.com,storage-component.googleapis.com,dataflow,compute_component,logging,storage_component,storage_api,bigquery,pubsub,datastore.googleapis.com,cloudresourcemanager.googleapis.com,doubleclicksearch) and follow the instructions.
+
+Note: The link to enable APIs might take a while to load. Please be patient.
 
 ### Pre-requisites
 
@@ -56,28 +61,19 @@ You must have the following software installed on your computer:
 First step is to set-up Google Cloud Composer. In order to do so, follow the
 steps:
 
-1.  Make sure you are in the right Cloud Project by visiting
-    [console.cloud.google.com](https://console.cloud.google.com/) and selecting
-    it in the dropdown
-
-    ![Cloud project drop-down](doc/images/environment-set0.png)
-
-1.  Enable the required APIs (click
-    [here](https://console.cloud.google.com/flows/enableapi?apiid=composer.googleapis.com,dataproc.googleapis.com,storage-component.googleapis.com&_ga=2.223122971.-183250881.1540540997))
-
 1.  Create a new Composer environment
 
-    *   Go to
+    1.  Go to
         [console.cloud.google.com/composer](https://console.cloud.google.com/composer)
-    *   Check 'Enable beta features'
+    1.  Check 'Enable beta features'
 
         ![Enabling beta features](doc/images/environment-set1.png)
 
-    *   Click on 'Create'
+    1.  Click on 'Create'
 
         ![Create Composer environment](doc/images/environment-set2.png)
 
-    *   Type in the following options:
+    1.  Type in the following options:
 
         *   Name: Enter a descriptive name
         *   Location: select a location close to you (e.g.: 'europe-west1)
@@ -90,7 +86,7 @@ steps:
         *   Disk size: 20
         *   Airflow version: 1.10.0
 
-    *   Click on 'Create' at the bottom of the page
+    1.  Click on 'Create' at the bottom of the page
 
     Tip: Creating the environment takes a while. We suggest you to continue with
     the other sections and come back later to finish environment configuration.
@@ -120,14 +116,6 @@ mozart/dataflow_template | GCS URI for DataFlow template                        
 
 ## DataFlow set-up
 
-1.  Make sure you are in the right Cloud Project by visiting
-    [console.cloud.google.com](https://console.cloud.google.com/) and selecting
-    it in the dropdown
-
-    ![Cloud drop-down](doc/images/environment-set5.png)
-
-1.  Enable the required APIs
-    [here](https://console.cloud.google.com/flows/enableapi?apiid=dataflow,compute_component,logging,storage_component,storage_api,bigquery,pubsub,datastore.googleapis.com,cloudresourcemanager.googleapis.com&_ga=2.17289529.-183250881.1540540997)
 1.  Create a Service account
     1.  In the GCP Console, go to the
         [Create service account key page](https://console.cloud.google.com/apis/credentials/serviceaccountkey?_ga=2.117905545.-183250881.1540540997).
