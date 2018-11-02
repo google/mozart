@@ -46,18 +46,19 @@ OUTPUT_FILENAME = 'output/' + REPORT_FILENAME
 
 # Read configuration from Airflow variables
 sa360_conn_id = 'google_cloud_default'
-dataflow_conn_id = 'dataflow'
-sftp_conn_id = 'sa360_sftp'
-agency_id = models.Variable.get('sa360_agency_id')
-advertiser_id = models.Variable.get('sa360_advertiser_id')
-gcs_bucket = models.Variable.get('gcs_bucket')
+ssh_conn_id = 'sa360_sftp'
+agency_id = models.Variable.get('mozart/sa360_agency_id')
+advertiser_id = models.Variable.get('mozart/sa360_advertiser_id')
+gcs_bucket = models.Variable.get('mozart/gcs_bucket')
 start_date = datetime.datetime.strptime(
-    models.Variable.get('mozart_start_date'), '%Y-%m-%d')
-lookback_days = int(models.Variable.get('lookback_days'))
-gcp_project = models.Variable.get('gcp_project')
-gcp_zone = models.Variable.get('gcp_zone')
-dataflow_staging = models.Variable.get('dataflow_staging')
-dataflow_template = models.Variable.get('dataflow_template')
+    models.Variable.get('mozart/mozart_start_date'), '%Y-%m-%d')
+lookback_days = int(models.Variable.get('mozart/lookback_days'))
+gcp_project = models.Variable.get('mozart/gcp_project')
+gcp_zone = models.Variable.get('mozart/gcp_zone')
+dataflow_staging = models.Variable.get('mozart/dataflow_staging')
+dataflow_template = models.Variable.get('mozart/dataflow_template')
+input_custom_data_file = models.Variable.get('input_custom_data_file')
+custom_data_column_names = models.Variable.get('custom_data_column_names')
 
 # Default args that will be applied to all tasks in the DAG
 default_args = {
@@ -70,15 +71,11 @@ default_args = {
     'retry_delay': datetime.timedelta(seconds=10),
 }
 
-# Hooks for connecting to GCS, SA360 API and SA360's sFTP endpoint
+# Hooks for connecting to GCS, SA360 API and SA360's sFTP endpoint.
 sa360_reporting_hook = sa360_reporting_hook.SA360ReportingHook(
     sa360_report_conn_id=sa360_conn_id)
 gcs_hook = gcs_hook.GoogleCloudStorageHook()
-ssh_hook = ssh_hook.SSHHook(
-    remote_host='partnerupload.google.com',
-    username='feeds-8c94k6',
-    password='>$qAZWZ2!B',
-    port=19321)
+ssh_hook = ssh_hook.SSHHook(ssh_conn_id=ssh_conn_id)
 
 # SA360 request builder
 request_builder = request_builder.SA360ReportRequestBuilder(
@@ -126,12 +123,14 @@ process_elements = dataflow_operator.DataflowTemplateOperator(
         'tempLocation': dataflow_staging,
     },
     parameters={
-        'inputFile': GCS_PATH_FORMAT % (gcs_bucket, REPORT_FILENAME),
-        'outputFile': GCS_PATH_FORMAT % (gcs_bucket, OUTPUT_FILENAME),
-        'header': output_file_header
+        'inputKeywordsFile': GCS_PATH_FORMAT % (gcs_bucket, REPORT_FILENAME),
+        'outputKeywordsFile': GCS_PATH_FORMAT % (gcs_bucket, OUTPUT_FILENAME),
+        'keywordColumnNames': output_file_header,
+        'inputCustomDataFile': input_custom_data_file,
+        'customDataColumnNames': custom_data_column_names
     },
     template=dataflow_template,
-    gcp_conn_id=dataflow_conn_id,
+    gcp_conn_id=sa360_conn_id,
     dag=dag)
 download_file.set_downstream(process_elements)
 
@@ -143,6 +142,6 @@ upload_to_sftp = gcs_to_sftp_operator.GCSToSFTPOperator(
     gcs_filename=OUTPUT_FILENAME,
     sftp_destination_path='/input.csv',
     gcp_conn_id=sa360_conn_id,
-    header=output_file_header,
+    header='Row Type,Action,Status,' + output_file_header,
     dag=dag)
 process_elements.set_downstream(upload_to_sftp)

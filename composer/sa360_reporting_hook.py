@@ -45,7 +45,7 @@ class SA360ReportingHook(gcp_api_base_hook.GoogleCloudBaseHook):
       api_version: SA360 API Version. Default is v2.
     """
     super(SA360ReportingHook, self).__init__(
-        conn_id=sa360_report_conn_id)
+        gcp_conn_id=sa360_report_conn_id)
 
     self.api_name = api_name
     self.api_version = api_version

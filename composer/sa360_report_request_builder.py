@@ -31,6 +31,8 @@ DEFAULT_COLUMNS = [{
     'columnName': 'keywordMaxCpc'
 }, {
     'columnName': 'clicks'
+}, {
+    'columnName': 'keywordId'
 }]
 
 # Equivalence between column names in the API and in the UI/Bulksheet
@@ -41,7 +43,8 @@ COLUMNS_DICT = {
     'keywordText': 'Keyword',
     'keywordMatchType': 'Match type',
     'keywordMaxCpc': 'Keyword max CPC',
-    'clicks': 'Clicks'
+    'clicks': 'Clicks',
+    'keywordId': 'Keyword ID',
 }
 
 
