@@ -44,8 +44,10 @@ For instructions on how to create a Google Cloud project and enable billing
 please refer to
 [Google Cloud Platform documentation](https://cloud.google.com/resource-manager/docs/creating-managing-projects).
 
-You must also enable certain Google Cloud Platform APIs to be able to use Mozart. In order to enable all of them
-in a single step, click on [enable APIs](https://console.cloud.google.com/flows/enableapi?apiid=composer.googleapis.com,dataproc.googleapis.com,storage-component.googleapis.com,dataflow,compute_component,logging,storage_component,storage_api,bigquery,pubsub,datastore.googleapis.com,cloudresourcemanager.googleapis.com,doubleclicksearch) and follow the instructions.
+You must also enable certain Google Cloud Platform APIs to be able to use
+Mozart. In order to enable all of them in a single step, click on
+[enable APIs](https://console.cloud.google.com/flows/enableapi?apiid=composer.googleapis.com,dataproc.googleapis.com,storage-component.googleapis.com,dataflow,compute_component,logging,storage_component,storage_api,bigquery,pubsub,datastore.googleapis.com,cloudresourcemanager.googleapis.com,doubleclicksearch)
+and follow the instructions.
 
 Note: The link to enable APIs might take a while to load. Please be patient.
 
@@ -103,16 +105,65 @@ steps:
 
 1.  Create the following variables:
 
-Variable                 | Description                                                                                                                         | Example value
------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | -------------
-mozart/sa360_agency_id   | SA360 agency ID                                                                                                                     | 123456789
-mozart/start_date        | Enter today's date                                                                                                                  | 2018-10-30
-mozart/lookback_days     | Number of days back to pull reports for. E.g.: if you enter '7', you will work with data (clicks, impressions) from the last 7 days | 7
-mozart/gcp_project       | Your Google Cloud project ID                                                                                                        | mozart-123456
-mozart/gcp_zone          | The zone of your Composer instance                                                                                                  | europe-west1-b
-mozart/gcs_bucket        | Name of the GCS bucket you created (without 'gs://' prefix)                                                                         | mozart-data
-mozart/dataflow_staging  | GCS URI for DataFlow staging folder                                                                                                 | gs://mozart-data/staging
-mozart/dataflow_template | GCS URI for DataFlow template                                                                                                       | gs://mozart-data/templates/MozartProcessElements
+| Variable                 | Description      | Example value                  |
+| ------------------------ | ---------------- | ------------------------------ |
+| mozart/sa360_agency_id   | SA360 agency ID  | 123456789                      |
+| mozart/start_date        | Enter today's    | 2018-10-30                     |
+:                          : date             :                                :
+| mozart/lookback_days     | Number of days   | 7                              |
+:                          : back to pull     :                                :
+:                          : reports for.     :                                :
+:                          : E.g.\: if you    :                                :
+:                          : enter '7', you   :                                :
+:                          : will work with   :                                :
+:                          : data (clicks,    :                                :
+:                          : impressions)     :                                :
+:                          : from the last 7  :                                :
+:                          : days             :                                :
+| mozart/gcp_project       | Your Google      | mozart-123456                  |
+:                          : Cloud project ID :                                :
+| mozart/gcp_zone          | The zone of your | europe-west1-b                 |
+:                          : Composer         :                                :
+:                          : instance         :                                :
+| mozart/gcs_bucket        | Name of the GCS  | mozart-data                    |
+:                          : bucket you       :                                :
+:                          : created (without :                                :
+:                          : 'gs\://' prefix) :                                :
+| mozart/dataflow_staging  | GCS URI for      | gs://mozart/staging            |
+:                          : DataFlow staging :                                :
+:                          : folder           :                                :
+| mozart/dataflow_template | GCS URI for      | gs://mozart/templates/Mozart   |
+:                          : DataFlow         :                                :
+:                          : template         :                                :
+| mozart/advertisers       | JSON describing  | \[{"advertiserId": "123",      |
+:                          : the advertisers  : "sftpConnId"\: "sa360_sftp",   :
+:                          : to work with.    : "sftpUsername"\: "username1",  :
+:                          : Each advertiser  : "sftpPassword"\:               :
+:                          : contains an      : "password1"},{"advertiserId"\: :
+:                          : entry with the   : "456", "sftpConnId"\:          :
+:                          : *advertiserId*   : "sa360_sftp", "sftpUsername"\: :
+:                          : and information  : "username2", "sftpPassword"\:  :
+:                          : about the sFTP   : "password2"} \]                :
+:                          : endpoint for     :                                :
+:                          : that advertiser. :                                :
+:                          : sFTP enpoint     :                                :
+:                          : connection must  :                                :
+:                          : specify either a :                                :
+:                          : *sftpConnId* or  :                                :
+:                          : the sFTP         :                                :
+:                          : connection       :                                :
+:                          : parameters\:     :                                :
+:                          : *sftpHost*,      :                                :
+:                          : *sftpPort*,      :                                :
+:                          : *sftpUsername*,  :                                :
+:                          : *sftpPassword*.  :                                :
+:                          : Any of these     :                                :
+:                          : individual       :                                :
+:                          : fields overrides :                                :
+:                          : the              :                                :
+:                          : configuration    :                                :
+:                          : provided in the  :                                :
+:                          : connection ID    :                                :
 
 ## DataFlow set-up
 

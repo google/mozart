@@ -26,6 +26,7 @@ DAG requirements:
       YYYY-MM-DD
 """
 import datetime
+import json
 
 import airflow
 from airflow import models
@@ -42,16 +43,15 @@ import sa360_reporting_hook
 
 GCS_PATH_FORMAT = 'gs://%s/%s'
 REPORT_FILENAME = 'report-{{ run_id }}.csv'
-OUTPUT_FILENAME = 'output/' + REPORT_FILENAME
 
 # Read configuration from Airflow variables
 sa360_conn_id = 'google_cloud_default'
 ssh_conn_id = 'sa360_sftp'
 agency_id = models.Variable.get('mozart/sa360_agency_id')
-advertiser_id = models.Variable.get('mozart/sa360_advertiser_id')
+advertisers = json.loads(models.Variable.get('mozart/sa360_advertisers'))
 gcs_bucket = models.Variable.get('mozart/gcs_bucket')
 start_date = datetime.datetime.strptime(
-    models.Variable.get('mozart/mozart_start_date'), '%Y-%m-%d')
+    models.Variable.get('mozart/start_date'), '%Y-%m-%d')
 lookback_days = int(models.Variable.get('mozart/lookback_days'))
 gcp_project = models.Variable.get('mozart/gcp_project')
 gcp_zone = models.Variable.get('mozart/gcp_zone')
@@ -75,11 +75,10 @@ default_args = {
 sa360_reporting_hook = sa360_reporting_hook.SA360ReportingHook(
     sa360_report_conn_id=sa360_conn_id)
 gcs_hook = gcs_hook.GoogleCloudStorageHook()
-ssh_hook = ssh_hook.SSHHook(ssh_conn_id=ssh_conn_id)
 
 # SA360 request builder
 request_builder = request_builder.SA360ReportRequestBuilder(
-    agency_id, advertiser_id)
+    agency_id, list(elem['advertiserId'] for elem in advertisers))
 
 output_file_header = ','.join(request_builder.get_headers())
 
@@ -115,33 +114,56 @@ download_file = download_operator.SA360DownloadReportFileOperator(
     dag=dag)
 wait_for_report.set_downstream(download_file)
 
-process_elements = dataflow_operator.DataflowTemplateOperator(
-    task_id='process_elements',
-    dataflow_default_options={
-        'project': gcp_project,
-        'zone': gcp_zone,
-        'tempLocation': dataflow_staging,
-    },
-    parameters={
-        'inputKeywordsFile': GCS_PATH_FORMAT % (gcs_bucket, REPORT_FILENAME),
-        'outputKeywordsFile': GCS_PATH_FORMAT % (gcs_bucket, OUTPUT_FILENAME),
-        'keywordColumnNames': output_file_header,
-        'inputCustomDataFile': input_custom_data_file,
-        'customDataColumnNames': custom_data_column_names
-    },
-    template=dataflow_template,
-    gcp_conn_id=sa360_conn_id,
-    dag=dag)
-download_file.set_downstream(process_elements)
+for advertiser in advertisers:
+  advertiser_id = advertiser['advertiserId']
+  sftp_conn_id = advertiser.get('sftpConnId', None)
+  sftp_host = advertiser.get('sftpHost', None)
+  sftp_port = advertiser.get('sftpPort', None)
+  sftp_username = advertiser.get('sftpUsername', None)
+  sftp_password = advertiser.get('sftpPassword', None)
+  connection_hook = ssh_hook.SSHHook(
+      ssh_conn_id=sftp_conn_id,
+      remote_host=sftp_host,
+      username=sftp_username,
+      password=sftp_password,
+      port=sftp_port)
 
-upload_to_sftp = gcs_to_sftp_operator.GCSToSFTPOperator(
-    task_id='upload_to_sftp',
-    gcs_hook=gcs_hook,
-    ssh_hook=ssh_hook,
-    gcs_bucket=gcs_bucket,
-    gcs_filename=OUTPUT_FILENAME,
-    sftp_destination_path='/input.csv',
-    gcp_conn_id=sa360_conn_id,
-    header='Row Type,Action,Status,' + output_file_header,
-    dag=dag)
-process_elements.set_downstream(upload_to_sftp)
+  output_filename = 'output/report-%s-{{ run_id }}.csv' % advertiser_id
+
+  process_elements = dataflow_operator.DataflowTemplateOperator(
+      task_id='process_elements-%s' % advertiser_id,
+      dataflow_default_options={
+          'project': gcp_project,
+          'zone': gcp_zone,
+          'tempLocation': dataflow_staging,
+      },
+      parameters={
+          'inputKeywordsFile':
+              GCS_PATH_FORMAT % (gcs_bucket, REPORT_FILENAME),
+          'outputKeywordsFile':
+              GCS_PATH_FORMAT % (gcs_bucket, output_filename),
+          'keywordColumnNames':
+              output_file_header,
+          'inputCustomDataFile':
+              input_custom_data_file,
+          'customDataColumnNames':
+              custom_data_column_names,
+          'advertiserId':
+              advertiser_id
+      },
+      template=dataflow_template,
+      gcp_conn_id=sa360_conn_id,
+      dag=dag)
+  download_file.set_downstream(process_elements)
+
+  upload_to_sftp = gcs_to_sftp_operator.GCSToSFTPOperator(
+      task_id='upload_to_sftp-%s' % advertiser_id,
+      gcs_hook=gcs_hook,
+      ssh_hook=connection_hook,
+      gcs_bucket=gcs_bucket,
+      gcs_filename=output_filename,
+      sftp_destination_path='/input.csv',
+      gcp_conn_id=sa360_conn_id,
+      header='Row Type,Action,Status,' + output_file_header,
+      dag=dag)
+  process_elements.set_downstream(upload_to_sftp)

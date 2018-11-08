@@ -58,14 +58,25 @@ class Sa360ReportRequestBuilderTest(googletest.TestCase):
             'columnName': 'keywordMaxCpc'
         }, {
             'columnName': 'clicks'
+        }, {
+            'columnName': 'keywordId'
+        }, {
+            'columnName': 'advertiserId'
         }],
         'filters': [{
             'column': {
-                'columnName': 'keywordText'
+                'columnName': 'keywordId'
             },
-            'operator': 'equals',
-            'values': ['Display Network Stats']
-        }],
+            'operator': 'notEquals',
+            'values': ['0']
+        },
+                    {
+                        'column': {
+                            'columnName': 'keywordText'
+                        },
+                        'operator': 'notEquals',
+                        'values': ['Display Network Stats']
+                    }],
         'timeRange': {}
     }
 
@@ -82,7 +93,7 @@ class Sa360ReportRequestBuilderTest(googletest.TestCase):
 
   def test_advertiser(self):
     builder = request_builder.SA360ReportRequestBuilder(AGENCY_ID,
-                                                        ADVERTISER_ID)
+                                                        [ADVERTISER_ID])
     start_date = datetime.date(YEAR, MONTH, DAY)
     end_date = datetime.date(YEAR, MONTH + 1, DAY)
     body = builder.build(start_date, end_date)
@@ -91,6 +102,27 @@ class Sa360ReportRequestBuilderTest(googletest.TestCase):
     self.expected_body['timeRange']['endDate'] = DATE_FORMAT % (YEAR, MONTH + 1,
                                                                 DAY)
     self.expected_body['reportScope']['advertiserId'] = ADVERTISER_ID
+    self.assertEqual(body, self.expected_body)
+
+  def test_advertiser_list(self):
+    advertiser_id_list = ['adv1', 'adv2', 'adv3']
+    builder = request_builder.SA360ReportRequestBuilder(AGENCY_ID,
+                                                        advertiser_id_list)
+    start_date = datetime.date(YEAR, MONTH, DAY)
+    end_date = datetime.date(YEAR, MONTH + 1, DAY)
+    body = builder.build(start_date, end_date)
+    self.expected_body['timeRange']['startDate'] = DATE_FORMAT % (YEAR, MONTH,
+                                                                  DAY)
+    self.expected_body['timeRange']['endDate'] = DATE_FORMAT % (YEAR, MONTH + 1,
+                                                                DAY)
+    self.expected_body['filters'].insert(
+        1, {
+            'column': {
+                'columnName': 'advertiserId'
+            },
+            'operator': 'in',
+            'values': advertiser_id_list
+        })
     self.assertEqual(body, self.expected_body)
 
   def test_not_valid_start_date(self):
@@ -131,16 +163,26 @@ class Sa360ReportRequestBuilderTest(googletest.TestCase):
   def test_get_headers(self):
     builder = request_builder.SA360ReportRequestBuilder(AGENCY_ID)
     self.assertEqual(builder.get_headers(), [
-        'Advertiser', 'Account', 'Campaign', 'Keyword', 'Match type',
-        'Keyword max CPC', 'Clicks'
+        'Advertiser',
+        'Account',
+        'Campaign',
+        'Keyword',
+        'Match type',
+        'Keyword max CPC',
+        'Clicks',
+        'Keyword ID',
+        'Advertiser ID',
     ])
 
   def test_get_headers_api_names(self):
     builder = request_builder.SA360ReportRequestBuilder(AGENCY_ID)
-    self.assertEqual(builder.get_headers(ui_names=False), [
-        'advertiser', 'account', 'campaign', 'keywordText', 'keywordMatchType',
-        'keywordMaxCpc', 'clicks'
-    ])
+    self.assertEqual(
+        builder.get_headers(ui_names=False), [
+            'advertiser', 'account', 'campaign', 'keywordText',
+            'keywordMatchType', 'keywordMaxCpc', 'clicks', 'keywordId',
+            'advertiserId'
+        ])
+
 
 if __name__ == '__main__':
   googletest.main()

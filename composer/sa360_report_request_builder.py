@@ -33,6 +33,8 @@ DEFAULT_COLUMNS = [{
     'columnName': 'clicks'
 }, {
     'columnName': 'keywordId'
+}, {
+    'columnName': 'advertiserId'
 }]
 
 # Equivalence between column names in the API and in the UI/Bulksheet
@@ -45,7 +47,10 @@ COLUMNS_DICT = {
     'keywordMaxCpc': 'Keyword max CPC',
     'clicks': 'Clicks',
     'keywordId': 'Keyword ID',
+    'advertiserId': 'Advertiser ID',
 }
+
+FILTERS = 'filters'
 
 
 class SA360ReportRequestBuilder(object):
@@ -53,23 +58,36 @@ class SA360ReportRequestBuilder(object):
 
   """
 
-  def __init__(self, agency_id, advertiser_id=None, columns=None,
+  def __init__(self,
+               agency_id,
+               advertiser_ids=None,
+               columns=None,
                filter_display_stats=True):
     """Constructor.
 
     Args:
       agency_id: ID of the agency for report scope.
-      advertiser_id: Defaults to None. Advertiser ID for report scope. Report
-        will be scoped to agency if this parameter is None.
+      advertiser_ids: Defaults to None. Advertiser IDs to filter the report to.
       columns: JSON descriptor for the report columns. Defaults to basic set of
         columns.
       filter_display_stats: Whether Display Stats should be filtered out from
         the report (optional. Default: True).
     """
     self._agency_id = agency_id
-    self._advertiser_id = advertiser_id
+    self._advertiser_ids = advertiser_ids
     self._columns = columns or DEFAULT_COLUMNS
     self._filter_display_stats = filter_display_stats
+
+  def _add_filter(self, request_body, new_filter):
+    """Add filter to request body.
+
+    Args:
+      request_body: Request body to which filter should be added.
+      new_filter: Filter to be added.
+    """
+    if not request_body.get(FILTERS, None):
+      request_body[FILTERS] = []
+    request_body[FILTERS].append(new_filter)
 
   def build(self, start_date, end_date):
     """Generate request body for keyword report.
@@ -95,16 +113,34 @@ class SA360ReportRequestBuilder(object):
             'endDate': end_date.isoformat()
         }
     }
-    if self._advertiser_id:
-      request_body[ATTR_SCOPE]['advertiserId'] = self._advertiser_id
+    self._add_filter(request_body, {
+        'column': {
+            'columnName': 'keywordId'
+        },
+        'operator': 'notEquals',
+        'values': ['0']
+    })
+    if self._advertiser_ids:
+      if len(self._advertiser_ids) == 1:
+        request_body[ATTR_SCOPE]['advertiserId'] = self._advertiser_ids[0]
+      else:
+        self._add_filter(
+            request_body, {
+                'column': {
+                    'columnName': 'advertiserId'
+                },
+                'operator': 'in',
+                'values': self._advertiser_ids
+            })
     if self._filter_display_stats:
-      request_body['filters'] = [{
-          'column': {
-              'columnName': 'keywordText'
-          },
-          'operator': 'notEquals',
-          'values': ['Display Network Stats']
-      }]
+      self._add_filter(
+          request_body, {
+              'column': {
+                  'columnName': 'keywordText'
+              },
+              'operator': 'notEquals',
+              'values': ['Display Network Stats']
+          })
     return request_body
 
   def get_headers(self, ui_names=True):

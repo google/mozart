@@ -38,6 +38,7 @@ public class Mozart implements Serializable {
   private static final String V_KEYWORD = "keyword";
   private static final String V_EDIT = "edit";
   private static final String V_ACTIVE = "Active";
+  private static final String H_ADVERTISER_ID = "Advertiser ID";
   private static final Logger LOG = LoggerFactory.getLogger(Mozart.class);
 
   public interface MozartOptions extends PipelineOptions {
@@ -55,6 +56,12 @@ public class Mozart implements Serializable {
     ValueProvider<String> getOutputKeywordsFile();
 
     void setOutputKeywordsFile(ValueProvider<String> value);
+    
+    @Description("Advertiser ID. This is used to filter the output so that it can be uploaded to "
+        + "sFTP")
+    ValueProvider<String> getAdvertiserId();
+
+    void setAdvertiserId(ValueProvider<String> value);
 
   }
 
@@ -77,6 +84,7 @@ public class Mozart implements Serializable {
       Pipeline pipeline) {
 
     options.getKeywordColumnNames().isAccessible();
+    options.getAdvertiserId().isAccessible();
 
     return pipeline.apply("MozartReadKeywords", TextIO.read().from(options.getInputKeywordsFile()))
         // Create dictionary
@@ -121,18 +129,20 @@ public class Mozart implements Serializable {
         .apply("MozartFlattenLines", ParDo.of(new DoFn<Map<String, String>, String>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
-            String[] headers = c.getPipelineOptions().as(MozartOptions.class)
-                .getKeywordColumnNames().get().split(",");
+            MozartOptions options = c.getPipelineOptions().as(MozartOptions.class);
+            String[] headers = options.getKeywordColumnNames().get().split(",");
             final List<String> values = new ArrayList<String>(headers.length);
             final Map<String, String> element = c.element();
-            List<String> outputHeaders = new ArrayList<>();
-            outputHeaders.add(H_ROW_TYPE);
-            outputHeaders.add(H_ACTION);
-            outputHeaders.add(H_STATUS);
-            outputHeaders.addAll(Arrays.asList(headers));
-            outputHeaders.forEach(header -> values.add(element.get(header)));
-            String valuesString = String.join(",", values);
-            c.output(valuesString);
+            if(element.get(H_ADVERTISER_ID).equals(options.getAdvertiserId().get())) {
+              List<String> outputHeaders = new ArrayList<>();
+              outputHeaders.add(H_ROW_TYPE);
+              outputHeaders.add(H_ACTION);
+              outputHeaders.add(H_STATUS);
+              outputHeaders.addAll(Arrays.asList(headers));
+              outputHeaders.forEach(header -> values.add(element.get(header)));
+              String valuesString = String.join(",", values);
+              c.output(valuesString);
+            }
           }
         })).apply("MozartWriteKeywords",
             TextIO.write().to(options.getOutputKeywordsFile()).withoutSharding());
