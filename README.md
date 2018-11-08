@@ -1,5 +1,16 @@
 # Mozart - Business logic for Search Ads 360
 
+Table of Contents
+=================
+
+  * [How it works](#how-it-works)
+  * [Architecture](#architecture)
+  * [Set-up](#set-up)
+     * [Pre-requisites](#pre-requisites)
+     * [Composer set-up](#composer-set-up)
+  * [DataFlow set-up](#dataflow-set-up)
+  * [Cloud Storage set-up](#cloud-storage-set-up)
+
 Mozart is a framework for automating tasks on Search Ads 360 (SA360). Mozart
 lets advertisers and agencies apply their own business logic to SA360 campaigns
 by leveraging well-known technologies such as Apache Beam.
@@ -105,65 +116,17 @@ steps:
 
 1.  Create the following variables:
 
-| Variable                 | Description      | Example value                  |
-| ------------------------ | ---------------- | ------------------------------ |
-| mozart/sa360_agency_id   | SA360 agency ID  | 123456789                      |
-| mozart/start_date        | Enter today's    | 2018-10-30                     |
-:                          : date             :                                :
-| mozart/lookback_days     | Number of days   | 7                              |
-:                          : back to pull     :                                :
-:                          : reports for.     :                                :
-:                          : E.g.\: if you    :                                :
-:                          : enter '7', you   :                                :
-:                          : will work with   :                                :
-:                          : data (clicks,    :                                :
-:                          : impressions)     :                                :
-:                          : from the last 7  :                                :
-:                          : days             :                                :
-| mozart/gcp_project       | Your Google      | mozart-123456                  |
-:                          : Cloud project ID :                                :
-| mozart/gcp_zone          | The zone of your | europe-west1-b                 |
-:                          : Composer         :                                :
-:                          : instance         :                                :
-| mozart/gcs_bucket        | Name of the GCS  | mozart-data                    |
-:                          : bucket you       :                                :
-:                          : created (without :                                :
-:                          : 'gs\://' prefix) :                                :
-| mozart/dataflow_staging  | GCS URI for      | gs://mozart/staging            |
-:                          : DataFlow staging :                                :
-:                          : folder           :                                :
-| mozart/dataflow_template | GCS URI for      | gs://mozart/templates/Mozart   |
-:                          : DataFlow         :                                :
-:                          : template         :                                :
-| mozart/advertisers       | JSON describing  | \[{"advertiserId": "123",      |
-:                          : the advertisers  : "sftpConnId"\: "sa360_sftp",   :
-:                          : to work with.    : "sftpUsername"\: "username1",  :
-:                          : Each advertiser  : "sftpPassword"\:               :
-:                          : contains an      : "password1"},{"advertiserId"\: :
-:                          : entry with the   : "456", "sftpConnId"\:          :
-:                          : *advertiserId*   : "sa360_sftp", "sftpUsername"\: :
-:                          : and information  : "username2", "sftpPassword"\:  :
-:                          : about the sFTP   : "password2"} \]                :
-:                          : endpoint for     :                                :
-:                          : that advertiser. :                                :
-:                          : sFTP enpoint     :                                :
-:                          : connection must  :                                :
-:                          : specify either a :                                :
-:                          : *sftpConnId* or  :                                :
-:                          : the sFTP         :                                :
-:                          : connection       :                                :
-:                          : parameters\:     :                                :
-:                          : *sftpHost*,      :                                :
-:                          : *sftpPort*,      :                                :
-:                          : *sftpUsername*,  :                                :
-:                          : *sftpPassword*.  :                                :
-:                          : Any of these     :                                :
-:                          : individual       :                                :
-:                          : fields overrides :                                :
-:                          : the              :                                :
-:                          : configuration    :                                :
-:                          : provided in the  :                                :
-:                          : connection ID    :                                :
+Variable                 | Description                                                                                                                                                                                                                                                                                                                                                                                                         | Example value
+------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------
+mozart/sa360_agency_id   | SA360 agency ID                                                                                                                                                                                                                                                                                                                                                                                                     | 123456789
+mozart/start_date        | Enter today's date                                                                                                                                                                                                                                                                                                                                                                                                  | 2018-10-30
+mozart/lookback_days     | Number of days back to pull reports for. E.g.: if you enter '7', you will work with data (clicks, impressions) from the last 7 days                                                                                                                                                                                                                                                                                 | 7
+mozart/gcp_project       | Your Google Cloud project ID                                                                                                                                                                                                                                                                                                                                                                                        | mozart-123456
+mozart/gcp_zone          | The zone of your Composer instance                                                                                                                                                                                                                                                                                                                                                                                  | europe-west1-b
+mozart/gcs_bucket        | Name of the GCS bucket you created (without 'gs://' prefix)                                                                                                                                                                                                                                                                                                                                                         | mozart-data
+mozart/dataflow_staging  | GCS URI for DataFlow staging folder                                                                                                                                                                                                                                                                                                                                                                                 | gs://mozart/staging
+mozart/dataflow_template | GCS URI for DataFlow template                                                                                                                                                                                                                                                                                                                                                                                       | gs://mozart/templates/MozartProcessElements
+mozart/advertisers       | JSON describing the advertisers to work with. Each advertiser contains an entry with the *advertiserId* and information about the sFTP endpoint for that advertiser. sFTP enpoint connection must specify either a *sftpConnId* or the sFTP connection parameters: *sftpHost*, *sftpPort*, *sftpUsername*, *sftpPassword*. Any of these individual fields overrides the configuration provided in the connection ID | \[{"advertiserId": "123", "sftpConnId": "sa360_sftp", "sftpUsername": "username1", "sftpPassword": "password1"},{"advertiserId": "456", "sftpConnId": "sa360_sftp", "sftpUsername": "username2", "sftpPassword": "password2"} \]
 
 ## DataFlow set-up
 
