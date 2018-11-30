@@ -11,8 +11,9 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.cse.mozart;
+package com.google.cse.mozart.examples;
 
+import com.google.cse.mozart.Mozart;
 import com.google.cse.mozart.Mozart.MozartOptions;
 import java.util.HashMap;
 import java.util.List;
@@ -31,14 +32,12 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * Mozart example pipeline.
  *
- * <p>
- * This is an example of a Beam pipeline that uses Mozart
+ * <p>This is an example of a Beam pipeline that uses Mozart
  */
-public class MozartExample {
+public class GCSInput {
 
   // Extend MozartOptions to add your custom options to the pipeline
   interface MozartExampleOptions extends MozartOptions {
@@ -53,7 +52,7 @@ public class MozartExample {
     void setCustomDataColumnNames(ValueProvider<String> value);
   }
 
-  private static final Logger LOG = LoggerFactory.getLogger(MozartExample.class);
+  private static final Logger LOG = LoggerFactory.getLogger(GCSInput.class);
 
   public static void main(String[] args) {
 
@@ -64,62 +63,72 @@ public class MozartExample {
     options.getCustomDataColumnNames().isAccessible();
     Pipeline p = Pipeline.create(options);
 
-
     // Load additional custom (non-SA360) data. For example: a file containing information about
     // whether a certain brand is in promotion state
     PCollection<Map<String, String>> customData =
         p.apply("ReadCustomData", TextIO.read().from(options.getInputCustomDataFile()))
             // Create dictionary
-            .apply("CreateCustomDataDict", ParDo.of(new DoFn<String, Map<String, String>>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                String[] element = c.element().split(",");
-                String[] headers = c.getPipelineOptions().as(MozartExampleOptions.class)
-                    .getCustomDataColumnNames().get().split(",");
-                Map<String, String> newOutput = new HashMap<>();
-                if (element.length == headers.length) {
-                  for (int i = 0; i < headers.length; i++) {
-                    newOutput.put(headers[i], element[i]);
-                  }
-                  c.output(newOutput);
-                } else {
-                  LOG.warn("Different length for headers and element. header: {}. element: {}",
-                      headers, element);
-                }
-              }
-            }));
-
+            .apply(
+                "CreateCustomDataDict",
+                ParDo.of(
+                    new DoFn<String, Map<String, String>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        String[] element = c.element().split(",");
+                        String[] headers =
+                            c.getPipelineOptions()
+                                .as(MozartExampleOptions.class)
+                                .getCustomDataColumnNames()
+                                .get()
+                                .split(",");
+                        Map<String, String> newOutput = new HashMap<>();
+                        if (element.length == headers.length) {
+                          for (int i = 0; i < headers.length; i++) {
+                            newOutput.put(headers[i], element[i]);
+                          }
+                          c.output(newOutput);
+                        } else {
+                          LOG.warn(
+                              "Different length for headers and element. header: {}. element: {}",
+                              headers,
+                              element);
+                        }
+                      }
+                    }));
 
     // Create a view of your custom data (this is necessary to pass it as side input to your
     // main PTransform
     PCollectionView<List<Map<String, String>>> customDataView =
         customData.apply("CreateCustomDataView", View.asList());
 
-    final String MAX_CPC_PROMO = "5";
-    final String MAX_CPC_NORMAL = "1";
+    final String maxCPCPromo = "5";
+    final String maxCPCNormal = "1";
 
     // Define your PTransform. Here is where your business logic is implemented
-    PTransform<? super PCollection<Map<String, String>>, PCollection<Map<String, String>>> businessTransform =
-        ParDo.of(new DoFn<Map<String, String>, Map<String, String>>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            List<Map<String, String>> customData = c.sideInput(customDataView);
-            final Map<String, String> element = c.element();
-            // Skip if element is empty
-            if (element.size() > 0) {
-              String newMaxCPC = MAX_CPC_NORMAL;
-              for (Map<String, String> customEntry : customData) {
-                if (element.get("Keyword").contains(customEntry.get("brand"))) {
-                  if (customEntry.get("status").equals("promotion")) {
-                    newMaxCPC = MAX_CPC_PROMO;
-                  }
-                }
-              }
-              element.put("Keyword max CPC", newMaxCPC);
-              c.output(element);
-            }
-          }
-        }).withSideInputs(customDataView);
+    PTransform<? super PCollection<Map<String, String>>, PCollection<Map<String, String>>>
+        businessTransform =
+            ParDo.of(
+                    new DoFn<Map<String, String>, Map<String, String>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        List<Map<String, String>> customData = c.sideInput(customDataView);
+                        final Map<String, String> element = c.element();
+                        // Skip if element is empty
+                        if (element.size() > 0) {
+                          String newMaxCPC = maxCPCNormal;
+                          for (Map<String, String> customEntry : customData) {
+                            if (element.get("Keyword").contains(customEntry.get("brand"))) {
+                              if (customEntry.get("status").equals("promotion")) {
+                                newMaxCPC = maxCPCPromo;
+                              }
+                            }
+                          }
+                          element.put("Keyword max CPC", newMaxCPC);
+                          c.output(element);
+                        }
+                      }
+                    })
+                .withSideInputs(customDataView);
 
     // Use Mozart to complete the pipeline
     // First, get the PCollection with all the keywords
